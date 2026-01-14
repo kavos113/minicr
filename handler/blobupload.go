@@ -3,6 +3,7 @@ package handler
 import (
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -54,29 +55,44 @@ func (h *PushHandler) PutBlobUpload(c echo.Context) error {
 
 	d, err := digest.Parse(dstr)
 	if err != nil {
+		log.Printf("cannot parse digest %s: %+v", dstr, err)
 		return c.String(http.StatusBadRequest, "invalid digest format")
 	}
 
 	tmpPath := filepath.Join(uploadDir, reference)
-	tmpFile, err := os.Create(tmpPath)
+	tmpFile, err := os.OpenFile(tmpPath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
 	if err != nil {
-		return c.String(http.StatusInternalServerError, "failed to create temporary file for upload")
+		log.Printf("failed to open upload file %s: %+v", tmpPath, err)
+		return c.String(http.StatusInternalServerError, "failed to open upload file")
 	}
 	defer tmpFile.Close()
 
-	verifier := d.Verifier()
-	writer := io.MultiWriter(tmpFile, verifier)
-
-	if _, err := io.Copy(writer, c.Request().Body); err != nil {
-		return c.String(http.StatusInternalServerError, "failed to read upload data")
+	_, err = io.Copy(tmpFile, c.Request().Body)
+	if err != nil {
+		log.Printf("failed to save file content to %s: %+v", tmpPath, err)
+		return c.String(http.StatusInternalServerError, "failed to save file content")
 	}
 
+	_, err = tmpFile.Seek(0, io.SeekStart)
+	if err != nil {
+		log.Printf("failed to seek start of file %s: %+v", tmpPath, err)
+		return c.String(http.StatusInternalServerError, "failed to seek file")
+	}
+
+	verifier := d.Verifier()
+	_, err = io.Copy(verifier, tmpFile)
+	if err != nil {
+		log.Printf("failed to verify digest for file %s: %+v", tmpPath, err)
+		return c.String(http.StatusInternalServerError, "failed to verify")
+	}
 	if !verifier.Verified() {
+		log.Printf("not verified digest: %s", dstr)
 		return c.String(http.StatusBadRequest, "uploaded data does not match the provided digest")
 	}
 
 	blobPath := filepath.Join(blobDir, d.String())
 	if err := os.Rename(tmpPath, blobPath); err != nil {
+		log.Printf("failed to store blob %s: %+v", blobPath, err)
 		return c.String(http.StatusInternalServerError, "failed to store blob")
 	}
 
@@ -84,4 +100,43 @@ func (h *PushHandler) PutBlobUpload(c echo.Context) error {
 	c.Response().Header().Set("Docker-Content-Digest", d.String())
 
 	return c.NoContent(http.StatusCreated)
+}
+
+func (h *PushHandler) PatchBlobUpload(c echo.Context) error {
+	name := c.Param("name")
+	if name == "" {
+		return c.String(http.StatusBadRequest, "repo name is required")
+	}
+
+	reference := c.Param("reference")
+	if reference == "" {
+		return c.String(http.StatusBadRequest, "blob reference is required")
+	}
+
+	// TODO validation by Content-Length, Content-Type
+
+	tmpPath := filepath.Join(uploadDir, reference)
+	f, err := os.OpenFile(tmpPath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+	if err != nil {
+		log.Printf("failed to open upload file %s: %+v", tmpPath, err)	
+		return c.String(http.StatusInternalServerError, "failed to open upload file")
+	}
+	defer f.Close()
+
+	_, err = io.Copy(f, c.Request().Body)
+	if err != nil {
+		log.Printf("failed to save file content to %s: %+v", tmpPath, err)
+		return c.String(http.StatusInternalServerError, "failed to save file content")
+	}
+
+	stat, err := os.Stat(tmpPath)
+	if err != nil {
+		log.Printf("failed to get tmp file stat %s: %+v", tmpPath, err)
+		return c.String(http.StatusInternalServerError, "failed to get tmp file stat")
+	}
+
+	c.Response().Header().Set("Location", fmt.Sprintf("/v2/%s/blobs/uploads/%s", name, reference))
+	c.Response().Header().Set("Range", fmt.Sprintf("0-%d", stat.Size()))
+
+	return c.NoContent(http.StatusAccepted)
 }

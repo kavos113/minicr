@@ -13,14 +13,14 @@ import (
 	"github.com/opencontainers/go-digest"
 )
 
-type PushHandler struct {
+type BlobUploadHandler struct {
 }
 
-func NewPushHandler() *PushHandler {
-	return &PushHandler{}
+func NewBlobUploadHandler() *BlobUploadHandler {
+	return &BlobUploadHandler{}
 }
 
-func (h *PushHandler) PostBlobUploads(c echo.Context) error {
+func (h *BlobUploadHandler) PostBlobUploads(c echo.Context) error {
 	name := c.Param("name")
 	if name == "" {
 		return c.String(http.StatusBadRequest, "repository name is required")
@@ -37,7 +37,7 @@ func (h *PushHandler) PostBlobUploads(c echo.Context) error {
 	return c.NoContent(http.StatusAccepted)
 }
 
-func (h *PushHandler) PutBlobUpload(c echo.Context) error {
+func (h *BlobUploadHandler) PutBlobUpload(c echo.Context) error {
 	name := c.Param("name")
 	if name == "" {
 		return c.String(http.StatusBadRequest, "repository name is required")
@@ -102,7 +102,7 @@ func (h *PushHandler) PutBlobUpload(c echo.Context) error {
 	return c.NoContent(http.StatusCreated)
 }
 
-func (h *PushHandler) PatchBlobUpload(c echo.Context) error {
+func (h *BlobUploadHandler) PatchBlobUpload(c echo.Context) error {
 	name := c.Param("name")
 	if name == "" {
 		return c.String(http.StatusBadRequest, "repo name is required")
@@ -118,7 +118,7 @@ func (h *PushHandler) PatchBlobUpload(c echo.Context) error {
 	tmpPath := filepath.Join(uploadDir, reference)
 	f, err := os.OpenFile(tmpPath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 	if err != nil {
-		log.Printf("failed to open upload file %s: %+v", tmpPath, err)	
+		log.Printf("failed to open upload file %s: %+v", tmpPath, err)
 		return c.String(http.StatusInternalServerError, "failed to open upload file")
 	}
 	defer f.Close()

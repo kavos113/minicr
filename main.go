@@ -31,7 +31,7 @@ func main() {
 		e.Logger.Fatal("Failed to initialize directories: ", err)
 	}
 
-	ph := handler.NewPushHandler()
+	ph := handler.NewBlobUploadHandler()
 	mh := handler.NewManifestHandler()
 
 	e.GET("/v2/", baseHandler)

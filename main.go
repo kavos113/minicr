@@ -17,10 +17,12 @@ func main() {
 	}
 
 	ph := handler.NewPushHandler()
+	mh := handler.NewManifestHandler()
 
 	e.GET("/v2/", baseHandler)
 	e.POST("/v2/:name/blobs/uploads/", ph.PostBlobUploads)
 	e.PUT("/v2/:name/blobs/uploads/:reference", ph.PutBlobUpload)
+	e.PUT("/v2/:name/manifests/:reference", mh.PutManifests)
 
 	e.Logger.Fatal(e.Start(":8080"))
 }

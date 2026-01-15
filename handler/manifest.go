@@ -26,11 +26,11 @@ func (h *ManifestHandler) PutManifests(c echo.Context) error {
 		return c.String(http.StatusBadRequest, "blank repo name")
 	}
 
-	// TODO: tag/digest
-	tag := c.Param("reference")
-	if tag == "" {
+	ref := c.Param("reference")
+	if ref == "" {
 		return c.String(http.StatusBadRequest, "blank reference")
 	}
+	istag := isTag(ref)
 
 	payload, err := io.ReadAll(c.Request().Body)
 	if err != nil {
@@ -63,8 +63,21 @@ func (h *ManifestHandler) PutManifests(c echo.Context) error {
 		return c.String(http.StatusInternalServerError, "failed to save manifest file")
 	}
 
+	if istag {
+		tagPath := filepath.Join(tagDir, ref)
+		err = os.WriteFile(tagPath, []byte(d.String()), 0644)
+		if err != nil {
+			return c.String(http.StatusInternalServerError, "failed to save tag")
+		}
+	}
+
 	c.Response().Header().Set("Location", fmt.Sprintf("/v2/%s/manifests/%s/", name, d.String()))
 	c.Response().Header().Set("Docker-Content-Digest", d.String())
 
 	return c.NoContent(http.StatusCreated)
+}
+
+func isTag(reference string) bool {
+	_, err := digest.Parse(reference)
+	return err != nil
 }

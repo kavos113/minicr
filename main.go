@@ -42,6 +42,8 @@ func main() {
 	e.PUT("/v2/:name/blobs/uploads/:reference", buh.PutBlobUpload)
 	e.PATCH("/v2/:name/blobs/uploads/:reference", buh.PatchBlobUpload)
 	e.PUT("/v2/:name/manifests/:reference", mh.PutManifests)
+	e.GET("/v2/:name/manifests/:reference", mh.GetManifests)
+	e.HEAD("/v2/:name/manifests/:reference", mh.GetManifests)
 
 	e.Logger.Fatal(e.Start(":8080"))
 }

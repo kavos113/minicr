@@ -22,14 +22,7 @@ func NewManifestHandler() *ManifestHandler {
 
 func (h *ManifestHandler) PutManifests(c echo.Context) error {
 	name := c.Param("name")
-	if name == "" {
-		return c.String(http.StatusBadRequest, "blank repo name")
-	}
-
 	ref := c.Param("reference")
-	if ref == "" {
-		return c.String(http.StatusBadRequest, "blank reference")
-	}
 	istag := isTag(ref)
 
 	payload, err := io.ReadAll(c.Request().Body)
@@ -75,6 +68,43 @@ func (h *ManifestHandler) PutManifests(c echo.Context) error {
 	c.Response().Header().Set("Docker-Content-Digest", d.String())
 
 	return c.NoContent(http.StatusCreated)
+}
+
+func (h *ManifestHandler) GetManifests(c echo.Context) error {
+	ref := c.Param("reference")
+	istag := isTag(ref)
+
+	d := ref
+	if istag {
+		data, err := os.ReadFile(filepath.Join(tagDir, ref))
+		if err != nil {
+			if os.IsNotExist(err) {
+				return c.NoContent(http.StatusNotFound)
+			}
+			return c.String(http.StatusInternalServerError, "failed to read tag")
+		}
+
+		d = string(data)
+	}
+
+	manifestPath := filepath.Join(blobDir, d)
+	rawManifest, err := os.ReadFile(manifestPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return c.NoContent(http.StatusNotFound)
+		}
+		return c.String(http.StatusInternalServerError, "failed to read manifest file")
+	}
+
+	var m schema.Manifest
+	if err = json.Unmarshal(rawManifest, &m); err != nil {
+		return c.String(http.StatusInternalServerError, "failed to parse json manifest")
+	}
+
+	c.Response().Header().Set(echo.HeaderContentType, m.MediaType)
+	c.Response().Header().Set("Docker-Content-Digest", d)
+
+	return c.JSON(http.StatusOK, m)
 }
 
 func isTag(reference string) bool {

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"github.com/labstack/echo/v4"
 	"github.com/opencontainers/go-digest"
@@ -21,7 +22,8 @@ func (b *BlobHandler) GetBlobs(c echo.Context) error {
 	dstr := c.Param("digest")
 
 	blobPath := filepath.Join(blobDir, dstr)
-	if _, err := os.Stat(blobPath); err != nil {
+	s, err := os.Stat(blobPath)
+	if err != nil {
 		if os.IsNotExist(err) {
 			return c.NoContent(http.StatusNotFound)
 		}
@@ -32,6 +34,7 @@ func (b *BlobHandler) GetBlobs(c echo.Context) error {
 	if err != nil {
 		return c.String(http.StatusInternalServerError, "failed to open file")
 	}
+	defer f.Close()
 
 	d, err := digest.FromReader(f)
 	if err != nil {
@@ -45,6 +48,7 @@ func (b *BlobHandler) GetBlobs(c echo.Context) error {
 
 	c.Response().Header().Set("Docker-Content-Digest", d.String())
 	c.Response().Header().Set(echo.HeaderContentType, echo.MIMEOctetStream)
+	c.Response().Header().Set(echo.HeaderContentLength, strconv.FormatInt(s.Size(), 10))
 
 	return c.NoContent(http.StatusOK)
 }
@@ -53,7 +57,8 @@ func (b *BlobHandler) HeadBlobs(c echo.Context) error {
 	dstr := c.Param("digest")
 
 	blobPath := filepath.Join(blobDir, dstr)
-	if _, err := os.Stat(blobPath); err != nil {
+	s, err := os.Stat(blobPath);
+	if err != nil {
 		if os.IsNotExist(err) {
 			return c.NoContent(http.StatusNotFound)
 		}
@@ -64,6 +69,7 @@ func (b *BlobHandler) HeadBlobs(c echo.Context) error {
 	if err != nil {
 		return c.String(http.StatusInternalServerError, "failed to open file")
 	}
+	defer f.Close()
 
 	d, err := digest.FromReader(f)
 	if err != nil {
@@ -71,6 +77,8 @@ func (b *BlobHandler) HeadBlobs(c echo.Context) error {
 	}
 
 	c.Response().Header().Set("Docker-Content-Digest", d.String())
+	c.Response().Header().Set(echo.HeaderContentType, echo.MIMEOctetStream)
+	c.Response().Header().Set(echo.HeaderContentLength, strconv.FormatInt(s.Size(), 10))
 
 	return c.NoContent(http.StatusOK)
 }

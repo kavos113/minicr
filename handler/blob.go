@@ -1,93 +1,46 @@
 package handler
 
 import (
-	"io"
-	"log"
+	"errors"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strconv"
 
+	"github.com/kavos113/minicr/storage"
 	"github.com/labstack/echo/v4"
 	"github.com/opencontainers/go-digest"
 )
 
 type BlobHandler struct {
+	storage storage.Storage
 }
 
-func NewBlobHandler() *BlobHandler {
-	return &BlobHandler{}
+func NewBlobHandler(s storage.Storage) *BlobHandler {
+	return &BlobHandler{storage: s}
 }
 
-func (b *BlobHandler) GetBlobs(c echo.Context) error {
+func (h *BlobHandler) GetBlobs(c echo.Context) error {
 	name := c.Param("name")
 	dstr := c.Param("digest")
 
-	blobPath := filepath.Join(blobDir, name, dstr)
-	s, err := os.Stat(blobPath)
+	d, err := digest.Parse(dstr)
 	if err != nil {
-		if os.IsNotExist(err) {
+		return c.NoContent(http.StatusBadRequest)
+	}
+
+	size, err := h.storage.ReadBlobToWriter(name, d, c.Response().Writer)
+	if err != nil {
+		if errors.Is(err, storage.ErrNotFound) {
 			return c.NoContent(http.StatusNotFound)
 		}
-		return c.String(http.StatusInternalServerError, "failed to stat")
-	}
-
-	f, err := os.Open(blobPath)
-	if err != nil {
-		return c.String(http.StatusInternalServerError, "failed to open file")
-	}
-	defer f.Close()
-
-	d, err := digest.FromReader(f)
-	if err != nil {
-		return c.String(http.StatusInternalServerError, "failed to create digest")
-	}
-	_, err = f.Seek(0, io.SeekStart)
-	if err != nil {
-		return c.String(http.StatusInternalServerError, "failed to seek blob file")
-	}
-
-	_, err = io.Copy(c.Response().Writer, f)
-	if err != nil {
-		return c.String(http.StatusInternalServerError, "failed to copy response")
+		if errors.Is(err, storage.ErrNotVerified) {
+			return c.NoContent(http.StatusBadRequest)
+		}
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	c.Response().Header().Set("Docker-Content-Digest", d.String())
 	c.Response().Header().Set(echo.HeaderContentType, echo.MIMEOctetStream)
-	c.Response().Header().Set(echo.HeaderContentLength, strconv.FormatInt(s.Size(), 10))
-
-	log.Printf("response: %+v\n", *c.Response())
-
-	return c.NoContent(http.StatusOK)
-}
-
-func (b *BlobHandler) HeadBlobs(c echo.Context) error {
-	name := c.Param("name")
-	dstr := c.Param("digest")
-
-	blobPath := filepath.Join(blobDir, name, dstr)
-	s, err := os.Stat(blobPath);
-	if err != nil {
-		if os.IsNotExist(err) {
-			return c.NoContent(http.StatusNotFound)
-		}
-		return c.String(http.StatusInternalServerError, "failed to stat")
-	}
-
-	f, err := os.Open(blobPath)
-	if err != nil {
-		return c.String(http.StatusInternalServerError, "failed to open file")
-	}
-	defer f.Close()
-
-	d, err := digest.FromReader(f)
-	if err != nil {
-		return c.String(http.StatusInternalServerError, "failed to create digest")
-	}
-
-	c.Response().Header().Set("Docker-Content-Digest", d.String())
-	c.Response().Header().Set(echo.HeaderContentType, echo.MIMEOctetStream)
-	c.Response().Header().Set(echo.HeaderContentLength, strconv.FormatInt(s.Size(), 10))
+	c.Response().Header().Set(echo.HeaderContentLength, strconv.FormatInt(size, 10))
 
 	return c.NoContent(http.StatusOK)
 }

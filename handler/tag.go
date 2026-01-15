@@ -1,18 +1,19 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
-	"os"
-	"path/filepath"
 
+	"github.com/kavos113/minicr/storage"
 	"github.com/labstack/echo/v4"
 )
 
 type TagHandler struct {
+	storage storage.Storage
 }
 
-func NewTagHandler() *TagHandler {
-	return &TagHandler{}
+func NewTagHandler(s storage.Storage) *TagHandler {
+	return &TagHandler{storage: s}
 }
 
 type tagsResponse struct {
@@ -23,14 +24,12 @@ type tagsResponse struct {
 func (h *TagHandler) GetTags(c echo.Context) error {
 	name := c.Param("name")
 
-	tagFiles, err := os.ReadDir(filepath.Join(tagDir, name))
+	tags, err := h.storage.GetTagList(name)
 	if err != nil {
-		return c.String(http.StatusInternalServerError, "failed to read tag dir")
-	}
-
-	tags := make([]string, 0, len(tagFiles))
-	for _, file := range tagFiles {
-		tags = append(tags, file.Name())
+		if errors.Is(err, storage.ErrNotFound) {
+			return c.NoContent(http.StatusNotFound)
+		}
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	res := &tagsResponse{

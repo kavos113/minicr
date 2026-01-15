@@ -39,7 +39,7 @@ func main() {
 
 	e.GET("/v2/", baseHandler)
 	e.GET("/v2/:name/blobs/:digest", bh.GetBlobs)
-	e.HEAD("/v2/:name/blobs/:digest", bh.HeadBlobs)
+	e.HEAD("/v2/:name/blobs/:digest", bh.GetBlobs)
 	e.POST("/v2/:name/blobs/uploads/", buh.PostBlobUploads)
 	e.PUT("/v2/:name/blobs/uploads/:reference", buh.PutBlobUpload)
 	e.PATCH("/v2/:name/blobs/uploads/:reference", buh.PatchBlobUpload)

@@ -2,22 +2,23 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
-	"os"
-	"path/filepath"
 
 	"github.com/kavos113/minicr/schema"
+	"github.com/kavos113/minicr/storage"
 	"github.com/labstack/echo/v4"
 	"github.com/opencontainers/go-digest"
 )
 
 type ManifestHandler struct {
+	storage storage.Storage
 }
 
-func NewManifestHandler() *ManifestHandler {
-	return &ManifestHandler{}
+func NewManifestHandler(s storage.Storage) *ManifestHandler {
+	return &ManifestHandler{storage: s}
 }
 
 func (h *ManifestHandler) PutManifests(c echo.Context) error {
@@ -41,34 +42,24 @@ func (h *ManifestHandler) PutManifests(c echo.Context) error {
 			return c.String(http.StatusBadRequest, "invalid digest")
 		}
 
-		blobPath := filepath.Join(blobDir, name, desc.Digest.String())
-		if _, err := os.Stat(blobPath); os.IsNotExist(err) {
-			// TODO: error code specs
-			return c.String(http.StatusBadRequest, "blob unknown")
+		exist, err := h.storage.IsExistBlob(name, desc.Digest)
+		if err != nil {
+			return c.NoContent(http.StatusInternalServerError)
 		}
-	}
-
-	if err = os.MkdirAll(filepath.Join(blobDir, name), 0755); err != nil {
-		return c.String(http.StatusInternalServerError, "failed to create blob dir")
+		if !exist {
+			return c.String(http.StatusBadRequest, "unknown blob layer")
+		}
 	}
 
 	d := digest.FromBytes(payload)
 
-	manifestPath := filepath.Join(blobDir, name, d.String())
-	err = os.WriteFile(manifestPath, payload, 0644)
-	if err != nil {
-		return c.String(http.StatusInternalServerError, "failed to save manifest file")
+	if err := h.storage.SaveBlob(name, d, payload); err != nil {
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	if istag {
-		if err = os.MkdirAll(filepath.Join(tagDir, name), 0755); err != nil {
-			return c.String(http.StatusInternalServerError, "failed to create tag dir")
-		}
-
-		tagPath := filepath.Join(tagDir, name, ref)
-		err = os.WriteFile(tagPath, []byte(d.String()), 0644)
-		if err != nil {
-			return c.String(http.StatusInternalServerError, "failed to save tag")
+		if err := h.storage.SaveTag(name, d, ref); err != nil {
+			return c.NoContent(http.StatusInternalServerError)
 		}
 	}
 
@@ -83,26 +74,26 @@ func (h *ManifestHandler) GetManifests(c echo.Context) error {
 	ref := c.Param("reference")
 	istag := isTag(ref)
 
-	d := ref
+	dstr := ref
 	if istag {
-		data, err := os.ReadFile(filepath.Join(tagDir, name, ref))
+		tag, err := h.storage.ReadTag(name, ref)
 		if err != nil {
-			if os.IsNotExist(err) {
-				return c.NoContent(http.StatusNotFound)
-			}
-			return c.String(http.StatusInternalServerError, "failed to read tag")
+			return c.NoContent(http.StatusInternalServerError)
 		}
-
-		d = string(data)
+		dstr = tag
 	}
 
-	manifestPath := filepath.Join(blobDir, name, d)
-	rawManifest, err := os.ReadFile(manifestPath)
+	d, err := digest.Parse(dstr)
 	if err != nil {
-		if os.IsNotExist(err) {
+		return c.NoContent(http.StatusBadRequest)
+	}
+
+	rawManifest, err := h.storage.ReadBlob(name, d)
+	if err != nil {
+		if errors.Is(err, storage.ErrNotFound) {
 			return c.NoContent(http.StatusNotFound)
 		}
-		return c.String(http.StatusInternalServerError, "failed to read manifest file")
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	var m schema.Manifest
@@ -111,7 +102,7 @@ func (h *ManifestHandler) GetManifests(c echo.Context) error {
 	}
 
 	c.Response().Header().Set(echo.HeaderContentType, m.MediaType)
-	c.Response().Header().Set("Docker-Content-Digest", d)
+	c.Response().Header().Set("Docker-Content-Digest", d.String())
 
 	return c.JSON(http.StatusOK, m)
 }

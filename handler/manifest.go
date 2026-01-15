@@ -41,23 +41,31 @@ func (h *ManifestHandler) PutManifests(c echo.Context) error {
 			return c.String(http.StatusBadRequest, "invalid digest")
 		}
 
-		blobPath := filepath.Join(blobDir, desc.Digest.String())
+		blobPath := filepath.Join(blobDir, name, desc.Digest.String())
 		if _, err := os.Stat(blobPath); os.IsNotExist(err) {
 			// TODO: error code specs
 			return c.String(http.StatusBadRequest, "blob unknown")
 		}
 	}
 
+	if err = os.MkdirAll(filepath.Join(blobDir, name), 0755); err != nil {
+		return c.String(http.StatusInternalServerError, "failed to create blob dir")
+	}
+
 	d := digest.FromBytes(payload)
 
-	manifestPath := filepath.Join(blobDir, d.String())
+	manifestPath := filepath.Join(blobDir, name, d.String())
 	err = os.WriteFile(manifestPath, payload, 0644)
 	if err != nil {
 		return c.String(http.StatusInternalServerError, "failed to save manifest file")
 	}
 
 	if istag {
-		tagPath := filepath.Join(tagDir, ref)
+		if err = os.MkdirAll(filepath.Join(tagDir, name), 0755); err != nil {
+			return c.String(http.StatusInternalServerError, "failed to create tag dir")
+		}
+
+		tagPath := filepath.Join(tagDir, name, ref)
 		err = os.WriteFile(tagPath, []byte(d.String()), 0644)
 		if err != nil {
 			return c.String(http.StatusInternalServerError, "failed to save tag")
@@ -71,12 +79,13 @@ func (h *ManifestHandler) PutManifests(c echo.Context) error {
 }
 
 func (h *ManifestHandler) GetManifests(c echo.Context) error {
+	name := c.Param("name")
 	ref := c.Param("reference")
 	istag := isTag(ref)
 
 	d := ref
 	if istag {
-		data, err := os.ReadFile(filepath.Join(tagDir, ref))
+		data, err := os.ReadFile(filepath.Join(tagDir, name, ref))
 		if err != nil {
 			if os.IsNotExist(err) {
 				return c.NoContent(http.StatusNotFound)
@@ -87,7 +96,7 @@ func (h *ManifestHandler) GetManifests(c echo.Context) error {
 		d = string(data)
 	}
 
-	manifestPath := filepath.Join(blobDir, d)
+	manifestPath := filepath.Join(blobDir, name, d)
 	rawManifest, err := os.ReadFile(manifestPath)
 	if err != nil {
 		if os.IsNotExist(err) {

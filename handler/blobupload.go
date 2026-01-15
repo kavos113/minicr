@@ -80,7 +80,11 @@ func (h *BlobUploadHandler) PutBlobUpload(c echo.Context) error {
 		return c.String(http.StatusBadRequest, "uploaded data does not match the provided digest")
 	}
 
-	blobPath := filepath.Join(blobDir, d.String())
+	if err = os.MkdirAll(filepath.Join(blobDir, name), 0755); err != nil {
+		return c.String(http.StatusInternalServerError, "failed to create blob dir")
+	}
+
+	blobPath := filepath.Join(blobDir, name, d.String())
 	if err := os.Rename(tmpPath, blobPath); err != nil {
 		log.Printf("failed to store blob %s: %+v", blobPath, err)
 		return c.String(http.StatusInternalServerError, "failed to store blob")

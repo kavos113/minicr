@@ -19,9 +19,10 @@ func NewBlobHandler() *BlobHandler {
 }
 
 func (b *BlobHandler) GetBlobs(c echo.Context) error {
+	name := c.Param("name")
 	dstr := c.Param("digest")
 
-	blobPath := filepath.Join(blobDir, dstr)
+	blobPath := filepath.Join(blobDir, name, dstr)
 	s, err := os.Stat(blobPath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -54,9 +55,10 @@ func (b *BlobHandler) GetBlobs(c echo.Context) error {
 }
 
 func (b *BlobHandler) HeadBlobs(c echo.Context) error {
+	name := c.Param("name")
 	dstr := c.Param("digest")
 
-	blobPath := filepath.Join(blobDir, dstr)
+	blobPath := filepath.Join(blobDir, name, dstr)
 	s, err := os.Stat(blobPath);
 	if err != nil {
 		if os.IsNotExist(err) {

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -41,6 +42,10 @@ func (b *BlobHandler) GetBlobs(c echo.Context) error {
 	if err != nil {
 		return c.String(http.StatusInternalServerError, "failed to create digest")
 	}
+	_, err = f.Seek(0, io.SeekStart)
+	if err != nil {
+		return c.String(http.StatusInternalServerError, "failed to seek blob file")
+	}
 
 	_, err = io.Copy(c.Response().Writer, f)
 	if err != nil {
@@ -50,6 +55,8 @@ func (b *BlobHandler) GetBlobs(c echo.Context) error {
 	c.Response().Header().Set("Docker-Content-Digest", d.String())
 	c.Response().Header().Set(echo.HeaderContentType, echo.MIMEOctetStream)
 	c.Response().Header().Set(echo.HeaderContentLength, strconv.FormatInt(s.Size(), 10))
+
+	log.Printf("response: %+v\n", *c.Response())
 
 	return c.NoContent(http.StatusOK)
 }

@@ -20,6 +20,8 @@ func main() {
 			"Content-Type",
 			"Content-Length",
 			"Content-Range",
+			"Docker-Content-Digest",
+			"Location",
 		},
 		LogValuesFunc: func(c echo.Context, v middleware.RequestLoggerValues) error {
 			log.Printf("Status: %d, Method: %s, URI: %s, Headers: %+v, Error: %+v", v.Status, v.Method, v.URI, v.Headers, v.Error)

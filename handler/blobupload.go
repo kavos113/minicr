@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/kavos113/minicr/storage"
@@ -18,6 +20,20 @@ type BlobUploadHandler struct {
 
 func NewBlobUploadHandler(s storage.Storage) *BlobUploadHandler {
 	return &BlobUploadHandler{storage: s}
+}
+
+func (h *BlobUploadHandler) GetBlobUploads(c echo.Context) error {
+	name := c.Param("name")
+	ref := c.Param("reference")
+
+	size, err := h.storage.GetUploadBlobSize(ref)
+	if err != nil && !errors.Is(err, storage.ErrNotFound) {
+		return c.NoContent(http.StatusInternalServerError)
+	}
+
+	c.Response().Header().Set("Range", fmt.Sprintf("0-%d", size-1))
+	c.Response().Header().Set(echo.HeaderLocation, fmt.Sprintf("/v2/%s/blobs/uploads/%s", name, ref))
+	return c.NoContent(http.StatusNoContent)
 }
 
 func (h *BlobUploadHandler) PostBlobUploads(c echo.Context) error {
@@ -64,14 +80,47 @@ func (h *BlobUploadHandler) PatchBlobUpload(c echo.Context) error {
 	name := c.Param("name")
 	reference := c.Param("reference")
 
-	// TODO validation by Content-Length, Content-Type
+	cr := c.Request().Header.Get("Content-Range")
+	cl := c.Request().Header.Get("Content-Length")
+	if cr != "" && cl != "" {
+		s, e, err := parseContentRange(cr)
+		if err != nil {
+			return c.NoContent(http.StatusBadRequest)
+		}
+		if s > e {
+			return c.NoContent(http.StatusRequestedRangeNotSatisfiable)
+		}
+
+		length, err := strconv.ParseInt(cl, 10, 64)
+		if err != nil {
+			return c.NoContent(http.StatusBadRequest)
+		}
+		if length != (e-s)+1 {
+			return c.NoContent(http.StatusRequestedRangeNotSatisfiable)
+		}
+
+		size, err := h.storage.GetUploadBlobSize(reference)
+		if err != nil && !errors.Is(err, storage.ErrNotFound) {
+			return c.NoContent(http.StatusInternalServerError)
+		}
+		if size != s {
+			return c.NoContent(http.StatusRequestedRangeNotSatisfiable)
+		}
+	}
+
 	size, err := h.storage.UploadBlob(reference, c.Request().Body)
 	if err != nil {
+		if errors.Is(err, storage.ErrInvalidRange) {
+			return c.NoContent(http.StatusRequestedRangeNotSatisfiable)
+		}
+		if errors.Is(err, storage.ErrNotFound) {
+			return c.NoContent(http.StatusNotFound)
+		}
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	c.Response().Header().Set(echo.HeaderLocation, fmt.Sprintf("/v2/%s/blobs/uploads/%s", name, reference))
-	c.Response().Header().Set("Range", fmt.Sprintf("0-%d", size))
+	c.Response().Header().Set("Range", fmt.Sprintf("0-%d", size-1))
 
 	return c.NoContent(http.StatusAccepted)
 }
@@ -108,4 +157,21 @@ func (h *BlobUploadHandler) PutBlobUpload(c echo.Context) error {
 	c.Response().Header().Set("Docker-Content-Digest", d.String())
 
 	return c.NoContent(http.StatusCreated)
+}
+
+func parseContentRange(r string) (int64, int64, error) {
+	s, e, ok := strings.Cut(r, "-")
+	if !ok {
+		return 0, 0, errors.New("no separator")
+	}
+	start, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		return 0, 0, err
+	}
+	end, err := strconv.ParseInt(e, 10, 64)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	return start, end, err
 }

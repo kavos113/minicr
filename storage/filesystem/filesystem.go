@@ -39,6 +39,18 @@ func NewStorage() *Storage {
 	return &Storage{}
 }
 
+func (s *Storage) GetUploadBlobSize(id string) (int64, error) {
+	tmpPath := filepath.Join(uploadDir, id)
+	st, err := os.Stat(tmpPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return 0, storage.ErrNotFound
+		}
+		return 0, storage.ErrStorageFail
+	}
+	return st.Size(), nil
+}
+
 func (s *Storage) UploadBlob(id string, r io.Reader) (int64, error) {
 	tmpPath := filepath.Join(uploadDir, id)
 	f, err := os.OpenFile(tmpPath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)

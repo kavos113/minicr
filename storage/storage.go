@@ -7,6 +7,9 @@ import (
 )
 
 type Storage interface {
+	// return 0 if not found
+	GetUploadBlobSize(id string) (int64, error)
+
 	// return blob size
 	UploadBlob(id string, r io.Reader) (int64, error)
 	CommitBlob(repoName string, id string, d digest.Digest) error

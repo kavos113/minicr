@@ -22,16 +22,13 @@ func NewBlobUploadHandler() *BlobUploadHandler {
 
 func (h *BlobUploadHandler) PostBlobUploads(c echo.Context) error {
 	name := c.Param("name")
-	if name == "" {
-		return c.String(http.StatusBadRequest, "repository name is required")
-	}
 
 	id, err := uuid.NewV7()
 	if err != nil {
 		return c.String(http.StatusInternalServerError, "failed to generate upload ID")
 	}
 
-	c.Response().Header().Set("Location", fmt.Sprintf("/v2/%s/blobs/uploads/%s", name, id.String()))
+	c.Response().Header().Set(echo.HeaderLocation, fmt.Sprintf("/v2/%s/blobs/uploads/%s", name, id.String()))
 	c.Response().Header().Set("Docker-Upload-UUID", id.String())
 
 	return c.NoContent(http.StatusAccepted)
@@ -39,14 +36,7 @@ func (h *BlobUploadHandler) PostBlobUploads(c echo.Context) error {
 
 func (h *BlobUploadHandler) PutBlobUpload(c echo.Context) error {
 	name := c.Param("name")
-	if name == "" {
-		return c.String(http.StatusBadRequest, "repository name is required")
-	}
-
 	reference := c.Param("reference")
-	if reference == "" {
-		return c.String(http.StatusBadRequest, "blob reference is required")
-	}
 
 	dstr := c.QueryParam("digest")
 	if dstr == "" {
@@ -96,7 +86,7 @@ func (h *BlobUploadHandler) PutBlobUpload(c echo.Context) error {
 		return c.String(http.StatusInternalServerError, "failed to store blob")
 	}
 
-	c.Response().Header().Set("Location", fmt.Sprintf("/v2/%s/blobs/%s", name, d.String()))
+	c.Response().Header().Set(echo.HeaderLocation, fmt.Sprintf("/v2/%s/blobs/%s", name, d.String()))
 	c.Response().Header().Set("Docker-Content-Digest", d.String())
 
 	return c.NoContent(http.StatusCreated)
@@ -104,14 +94,7 @@ func (h *BlobUploadHandler) PutBlobUpload(c echo.Context) error {
 
 func (h *BlobUploadHandler) PatchBlobUpload(c echo.Context) error {
 	name := c.Param("name")
-	if name == "" {
-		return c.String(http.StatusBadRequest, "repo name is required")
-	}
-
 	reference := c.Param("reference")
-	if reference == "" {
-		return c.String(http.StatusBadRequest, "blob reference is required")
-	}
 
 	// TODO validation by Content-Length, Content-Type
 
@@ -135,7 +118,7 @@ func (h *BlobUploadHandler) PatchBlobUpload(c echo.Context) error {
 		return c.String(http.StatusInternalServerError, "failed to get tmp file stat")
 	}
 
-	c.Response().Header().Set("Location", fmt.Sprintf("/v2/%s/blobs/uploads/%s", name, reference))
+	c.Response().Header().Set(echo.HeaderLocation, fmt.Sprintf("/v2/%s/blobs/uploads/%s", name, reference))
 	c.Response().Header().Set("Range", fmt.Sprintf("0-%d", stat.Size()))
 
 	return c.NoContent(http.StatusAccepted)

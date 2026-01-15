@@ -31,13 +31,15 @@ func main() {
 		e.Logger.Fatal("Failed to initialize directories: ", err)
 	}
 
-	ph := handler.NewBlobUploadHandler()
+	bh := handler.NewBlobHandler()
+	buh := handler.NewBlobUploadHandler()
 	mh := handler.NewManifestHandler()
 
 	e.GET("/v2/", baseHandler)
-	e.POST("/v2/:name/blobs/uploads/", ph.PostBlobUploads)
-	e.PUT("/v2/:name/blobs/uploads/:reference", ph.PutBlobUpload)
-	e.PATCH("/v2/:name/blobs/uploads/:reference", ph.PatchBlobUpload)
+	e.GET("/v2/:name/blobs/:digest", bh.GetBlobs)
+	e.POST("/v2/:name/blobs/uploads/", buh.PostBlobUploads)
+	e.PUT("/v2/:name/blobs/uploads/:reference", buh.PutBlobUpload)
+	e.PATCH("/v2/:name/blobs/uploads/:reference", buh.PatchBlobUpload)
 	e.PUT("/v2/:name/manifests/:reference", mh.PutManifests)
 
 	e.Logger.Fatal(e.Start(":8080"))

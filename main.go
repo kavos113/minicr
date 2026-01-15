@@ -14,8 +14,8 @@ func main() {
 	e.Use(middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
 		LogStatus: true,
 		LogMethod: true,
-		LogURI: true,
-		LogError: true,
+		LogURI:    true,
+		LogError:  true,
 		LogHeaders: []string{
 			"Content-Type",
 			"Content-Length",
@@ -37,6 +37,7 @@ func main() {
 
 	e.GET("/v2/", baseHandler)
 	e.GET("/v2/:name/blobs/:digest", bh.GetBlobs)
+	e.HEAD("/v2/:name/blobs/:digest", bh.HeadBlobs)
 	e.POST("/v2/:name/blobs/uploads/", buh.PostBlobUploads)
 	e.PUT("/v2/:name/blobs/uploads/:reference", buh.PutBlobUpload)
 	e.PATCH("/v2/:name/blobs/uploads/:reference", buh.PatchBlobUpload)

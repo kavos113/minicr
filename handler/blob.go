@@ -48,3 +48,29 @@ func (b *BlobHandler) GetBlobs(c echo.Context) error {
 
 	return c.NoContent(http.StatusOK)
 }
+
+func (b *BlobHandler) HeadBlobs(c echo.Context) error {
+	dstr := c.Param("digest")
+
+	blobPath := filepath.Join(blobDir, dstr)
+	if _, err := os.Stat(blobPath); err != nil {
+		if os.IsNotExist(err) {
+			return c.NoContent(http.StatusNotFound)
+		}
+		return c.String(http.StatusInternalServerError, "failed to stat")
+	}
+
+	f, err := os.Open(blobPath)
+	if err != nil {
+		return c.String(http.StatusInternalServerError, "failed to open file")
+	}
+
+	d, err := digest.FromReader(f)
+	if err != nil {
+		return c.String(http.StatusInternalServerError, "failed to create digest")
+	}
+
+	c.Response().Header().Set("Docker-Content-Digest", d.String())
+
+	return c.NoContent(http.StatusOK)
+}

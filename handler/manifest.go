@@ -14,7 +14,6 @@ import (
 )
 
 type ManifestHandler struct {
-
 }
 
 func NewManifestHandler() *ManifestHandler {

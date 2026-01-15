@@ -78,6 +78,9 @@ func (h *ManifestHandler) GetManifests(c echo.Context) error {
 	if istag {
 		tag, err := h.storage.ReadTag(name, ref)
 		if err != nil {
+			if errors.Is(err, storage.ErrNotFound) {
+				return c.NoContent(http.StatusNotFound)
+			}
 			return c.NoContent(http.StatusInternalServerError)
 		}
 		dstr = tag

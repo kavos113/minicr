@@ -35,6 +35,7 @@ func main() {
 	bh := handler.NewBlobHandler(s)
 	buh := handler.NewBlobUploadHandler(s)
 	mh := handler.NewManifestHandler(s)
+	th := handler.NewTagHandler(s)
 
 	e.GET("/v2/", baseHandler)
 	e.GET("/v2/:name/blobs/:digest", bh.GetBlobs)
@@ -45,6 +46,7 @@ func main() {
 	e.PUT("/v2/:name/manifests/:reference", mh.PutManifests)
 	e.GET("/v2/:name/manifests/:reference", mh.GetManifests)
 	e.HEAD("/v2/:name/manifests/:reference", mh.GetManifests)
+	e.GET("/v2/:name/tags/list", th.GetTags)
 
 	e.Logger.Fatal(e.Start(":8080"))
 }

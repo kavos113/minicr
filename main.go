@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/kavos113/minicr/handler"
+	"github.com/kavos113/minicr/storage/filesystem"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
@@ -29,13 +30,11 @@ func main() {
 		},
 	}))
 
-	if err := handler.InitDirs(); err != nil {
-		e.Logger.Fatal("Failed to initialize directories: ", err)
-	}
+	s := filesystem.NewStorage()
 
-	bh := handler.NewBlobHandler()
-	buh := handler.NewBlobUploadHandler()
-	mh := handler.NewManifestHandler()
+	bh := handler.NewBlobHandler(s)
+	buh := handler.NewBlobUploadHandler(s)
+	mh := handler.NewManifestHandler(s)
 
 	e.GET("/v2/", baseHandler)
 	e.GET("/v2/:name/blobs/:digest", bh.GetBlobs)

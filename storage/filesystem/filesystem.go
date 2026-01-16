@@ -135,7 +135,6 @@ func (s *Storage) ReadBlob(repoName string, d digest.Digest) ([]byte, error) {
 	return data, nil
 }
 
-// ReadBlobToWriter write blob to w, and verify digest
 func (s *Storage) ReadBlobToWriter(repoName string, d digest.Digest, w io.Writer) (int64, error) {
 	blobPath := filepath.Join(blobDir, repoName, d.String())
 	st, err := os.Stat(blobPath)
@@ -219,4 +218,19 @@ func (s *Storage) GetTagList(repoName string) ([]string, error) {
 	}
 
 	return tags, nil
+}
+
+func (s *Storage) DeleteTag(repoName string, tag string) error {
+	path := filepath.Join(tagDir, repoName, tag)
+	if _, err := os.Stat(path); err != nil {
+		if os.IsNotExist(err) {
+			return storage.ErrNotFound
+		}
+		return fmt.Errorf("failed to stat: %w", storage.ErrStorageFail)
+	}
+
+	if err := os.Remove(path); err != nil {
+		return fmt.Errorf("failed to remove tag: %w", storage.ErrStorageFail)
+	}
+	return nil
 }

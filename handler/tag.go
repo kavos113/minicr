@@ -38,3 +38,17 @@ func (h *TagHandler) GetTags(c echo.Context) error {
 	}
 	return c.JSON(http.StatusOK, res)
 }
+
+func (h *TagHandler) DeleteTag(c echo.Context) error {
+	name := c.Param("name")
+	tag := c.Param("tag")
+
+	if err := h.storage.DeleteTag(name, tag); err != nil {
+		if errors.Is(err, storage.ErrNotFound) {
+			return c.NoContent(http.StatusNotFound)
+		}
+		return c.NoContent(http.StatusInternalServerError)
+	}
+
+	return c.NoContent(http.StatusAccepted)
+}

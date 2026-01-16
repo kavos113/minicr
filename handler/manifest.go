@@ -14,11 +14,15 @@ import (
 )
 
 type ManifestHandler struct {
-	storage storage.BlobStorage
+	bs storage.BlobStorage
+	ms storage.MetaStorage
 }
 
-func NewManifestHandler(s storage.BlobStorage) *ManifestHandler {
-	return &ManifestHandler{storage: s}
+func NewManifestHandler(bs storage.BlobStorage, ms storage.MetaStorage) *ManifestHandler {
+	return &ManifestHandler{
+		bs: bs,
+		ms: ms,
+	}
 }
 
 func (h *ManifestHandler) PutManifests(c echo.Context) error {
@@ -42,7 +46,7 @@ func (h *ManifestHandler) PutManifests(c echo.Context) error {
 			return c.String(http.StatusBadRequest, "invalid digest")
 		}
 
-		exist, err := h.storage.IsExistBlob(name, desc.Digest)
+		exist, err := h.bs.IsExistBlob(name, desc.Digest)
 		if err != nil {
 			return c.NoContent(http.StatusInternalServerError)
 		}
@@ -53,12 +57,12 @@ func (h *ManifestHandler) PutManifests(c echo.Context) error {
 
 	d := digest.FromBytes(payload)
 
-	if err := h.storage.SaveBlob(name, d, payload); err != nil {
+	if err := h.bs.SaveBlob(name, d, payload); err != nil {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	if istag {
-		if err := h.storage.SaveTag(name, d, ref); err != nil {
+		if err := h.ms.SaveTag(name, d, ref); err != nil {
 			return c.NoContent(http.StatusInternalServerError)
 		}
 	}
@@ -76,7 +80,7 @@ func (h *ManifestHandler) GetManifests(c echo.Context) error {
 
 	dstr := ref
 	if istag {
-		tag, err := h.storage.ReadTag(name, ref)
+		tag, err := h.ms.ReadTag(name, ref)
 		if err != nil {
 			if errors.Is(err, storage.ErrNotFound) {
 				return c.NoContent(http.StatusNotFound)
@@ -91,7 +95,7 @@ func (h *ManifestHandler) GetManifests(c echo.Context) error {
 		return c.NoContent(http.StatusBadRequest)
 	}
 
-	rawManifest, err := h.storage.ReadBlob(name, d)
+	rawManifest, err := h.bs.ReadBlob(name, d)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
 			return c.NoContent(http.StatusNotFound)
@@ -116,7 +120,7 @@ func (h *ManifestHandler) DeleteManifests(c echo.Context) error {
 
 	istag := isTag(ref)
 	if istag {
-		err := h.storage.DeleteTag(name, ref)
+		err := h.ms.DeleteTag(name, ref)
 		if err != nil {
 			if errors.Is(err, storage.ErrNotFound) {
 				return c.NoContent(http.StatusNotFound)
@@ -131,7 +135,7 @@ func (h *ManifestHandler) DeleteManifests(c echo.Context) error {
 		return c.NoContent(http.StatusBadRequest)
 	}
 
-	err = h.storage.DeleteBlob(name, d)
+	err = h.bs.DeleteBlob(name, d)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
 			return c.NoContent(http.StatusNotFound)

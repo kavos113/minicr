@@ -6,6 +6,7 @@ import (
 
 	"github.com/kavos113/minicr/handler"
 	"github.com/kavos113/minicr/storage/filesystem"
+	"github.com/kavos113/minicr/storage/store"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
@@ -30,12 +31,13 @@ func main() {
 		},
 	}))
 
-	s := filesystem.NewStorage()
+	fs := filesystem.NewStorage()
+	ss := store.NewStorage()
 
-	bh := handler.NewBlobHandler(s)
-	buh := handler.NewBlobUploadHandler(s)
-	mh := handler.NewManifestHandler(s)
-	th := handler.NewTagHandler(s)
+	bh := handler.NewBlobHandler(fs)
+	buh := handler.NewBlobUploadHandler(fs)
+	mh := handler.NewManifestHandler(fs, ss)
+	th := handler.NewTagHandler(ss)
 
 	e.GET("/v2/", baseHandler)
 	e.GET("/v2/:name/blobs/:digest", bh.GetBlobs)

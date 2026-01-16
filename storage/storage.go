@@ -19,12 +19,6 @@ type BlobStorage interface {
 	ReadBlobToWriter(repoName string, d digest.Digest, w io.Writer) (int64, error)
 	IsExistBlob(repoName string, d digest.Digest) (bool, error)
 	DeleteBlob(repoName string, d digest.Digest) error
-
-	SaveTag(repoName string, d digest.Digest, tag string) error
-	ReadTag(repoName string, tag string) (string, error)
-	DeleteTag(repoName string, tag string) error
-	// GetTagList limit(default: -1), last: optional
-	GetTagList(repoName string, limit int, last string) ([]string, error)
 }
 
 type MetaStorage interface {

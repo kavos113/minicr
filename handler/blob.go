@@ -11,11 +11,11 @@ import (
 )
 
 type BlobHandler struct {
-	storage storage.BlobStorage
+	bs storage.BlobStorage
 }
 
 func NewBlobHandler(s storage.BlobStorage) *BlobHandler {
-	return &BlobHandler{storage: s}
+	return &BlobHandler{bs: s}
 }
 
 func (h *BlobHandler) GetBlobs(c echo.Context) error {
@@ -27,7 +27,7 @@ func (h *BlobHandler) GetBlobs(c echo.Context) error {
 		return c.NoContent(http.StatusBadRequest)
 	}
 
-	size, err := h.storage.ReadBlobToWriter(name, d, c.Response().Writer)
+	size, err := h.bs.ReadBlobToWriter(name, d, c.Response().Writer)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
 			return c.NoContent(http.StatusNotFound)
@@ -54,7 +54,7 @@ func (h *BlobHandler) DeleteBlob(c echo.Context) error {
 		return c.NoContent(http.StatusBadRequest)
 	}
 
-	err = h.storage.DeleteBlob(name, d)
+	err = h.bs.DeleteBlob(name, d)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
 			return c.NoContent(http.StatusNotFound)

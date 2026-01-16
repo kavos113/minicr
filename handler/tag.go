@@ -10,11 +10,11 @@ import (
 )
 
 type TagHandler struct {
-	storage storage.BlobStorage
+	ms storage.MetaStorage
 }
 
-func NewTagHandler(s storage.BlobStorage) *TagHandler {
-	return &TagHandler{storage: s}
+func NewTagHandler(s storage.MetaStorage) *TagHandler {
+	return &TagHandler{ms: s}
 }
 
 type tagsResponse struct {
@@ -36,7 +36,7 @@ func (h *TagHandler) GetTags(c echo.Context) error {
 		n = ni
 	}
 
-	tags, err := h.storage.GetTagList(name, n, last)
+	tags, err := h.ms.GetTagList(name, n, last)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
 			return c.NoContent(http.StatusNotFound)
@@ -55,7 +55,7 @@ func (h *TagHandler) DeleteTag(c echo.Context) error {
 	name := c.Param("name")
 	tag := c.Param("tag")
 
-	if err := h.storage.DeleteTag(name, tag); err != nil {
+	if err := h.ms.DeleteTag(name, tag); err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
 			return c.NoContent(http.StatusNotFound)
 		}

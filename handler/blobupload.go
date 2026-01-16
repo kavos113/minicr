@@ -15,18 +15,18 @@ import (
 )
 
 type BlobUploadHandler struct {
-	storage storage.BlobStorage
+	bs storage.BlobStorage
 }
 
 func NewBlobUploadHandler(s storage.BlobStorage) *BlobUploadHandler {
-	return &BlobUploadHandler{storage: s}
+	return &BlobUploadHandler{bs: s}
 }
 
 func (h *BlobUploadHandler) GetBlobUploads(c echo.Context) error {
 	name := c.Param("name")
 	ref := c.Param("reference")
 
-	size, err := h.storage.GetUploadBlobSize(ref)
+	size, err := h.bs.GetUploadBlobSize(ref)
 	if err != nil && !errors.Is(err, storage.ErrNotFound) {
 		return c.NoContent(http.StatusInternalServerError)
 	}
@@ -54,12 +54,12 @@ func (h *BlobUploadHandler) PostBlobUploads(c echo.Context) error {
 			return c.String(http.StatusBadRequest, "invalid digest format")
 		}
 
-		_, err = h.storage.UploadBlob(id.String(), c.Request().Body)
+		_, err = h.bs.UploadBlob(id.String(), c.Request().Body)
 		if err != nil {
 			return c.NoContent(http.StatusInternalServerError)
 		}
 
-		err = h.storage.CommitBlob(name, id.String(), d)
+		err = h.bs.CommitBlob(name, id.String(), d)
 		if err != nil {
 			if errors.Is(err, storage.ErrNotVerified) {
 				return c.NoContent(http.StatusBadRequest)
@@ -99,7 +99,7 @@ func (h *BlobUploadHandler) PatchBlobUpload(c echo.Context) error {
 			return c.NoContent(http.StatusRequestedRangeNotSatisfiable)
 		}
 
-		size, err := h.storage.GetUploadBlobSize(reference)
+		size, err := h.bs.GetUploadBlobSize(reference)
 		if err != nil && !errors.Is(err, storage.ErrNotFound) {
 			return c.NoContent(http.StatusInternalServerError)
 		}
@@ -108,7 +108,7 @@ func (h *BlobUploadHandler) PatchBlobUpload(c echo.Context) error {
 		}
 	}
 
-	size, err := h.storage.UploadBlob(reference, c.Request().Body)
+	size, err := h.bs.UploadBlob(reference, c.Request().Body)
 	if err != nil {
 		if errors.Is(err, storage.ErrInvalidRange) {
 			return c.NoContent(http.StatusRequestedRangeNotSatisfiable)
@@ -140,12 +140,12 @@ func (h *BlobUploadHandler) PutBlobUpload(c echo.Context) error {
 		return c.String(http.StatusBadRequest, "invalid digest format")
 	}
 
-	_, err = h.storage.UploadBlob(reference, c.Request().Body)
+	_, err = h.bs.UploadBlob(reference, c.Request().Body)
 	if err != nil {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	err = h.storage.CommitBlob(name, reference, d)
+	err = h.bs.CommitBlob(name, reference, d)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotVerified) {
 			return c.NoContent(http.StatusBadRequest)

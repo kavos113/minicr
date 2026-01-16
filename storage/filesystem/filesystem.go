@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"slices"
 
 	"github.com/kavos113/minicr/storage"
 	"github.com/opencontainers/go-digest"
@@ -185,72 +184,6 @@ func (s *Storage) DeleteBlob(repoName string, d digest.Digest) error {
 			return storage.ErrNotFound
 		}
 		return fmt.Errorf("failed to remove blob: %w", storage.ErrStorageFail)
-	}
-	return nil
-}
-
-func (s *Storage) SaveTag(repoName string, d digest.Digest, tag string) error {
-	if err := os.MkdirAll(filepath.Join(tagDir, repoName), 0755); err != nil {
-		return fmt.Errorf("failed to create tag dir: %w", storage.ErrStorageFail)
-	}
-
-	tagPath := filepath.Join(tagDir, repoName, tag)
-	if err := os.WriteFile(tagPath, []byte(d.String()), 0644); err != nil {
-		return fmt.Errorf("failed to save tag: %w", storage.ErrStorageFail)
-	}
-
-	return nil
-}
-
-func (s *Storage) ReadTag(repoName string, tag string) (string, error) {
-	data, err := os.ReadFile(filepath.Join(tagDir, repoName, tag))
-	if err != nil {
-		if os.IsNotExist(err) {
-			return "", storage.ErrNotFound
-		}
-		return "", fmt.Errorf("failed to read tag file: %w", storage.ErrStorageFail)
-	}
-
-	return string(data), nil
-}
-
-func (s *Storage) GetTagList(repoName string, limit int, last string) ([]string, error) {
-	files, err := os.ReadDir(filepath.Join(tagDir, repoName))
-	if err != nil {
-		if os.IsNotExist(err) {
-			return []string{}, storage.ErrNotFound
-		}
-		return []string{}, fmt.Errorf("failed to read tag dir: %w", storage.ErrStorageFail)
-	}
-
-	if last != "" {
-		i := slices.IndexFunc(files, func(entry os.DirEntry) bool {
-			return entry.Name() == last
-		})
-		if i >= 0 && i < len(files)-1 {
-			files = files[i+1:]
-		}
-	}
-
-	if limit > 0 {
-		files = files[:limit]
-	}
-
-	tags := make([]string, 0, len(files))
-	for _, file := range files {
-		tags = append(tags, file.Name())
-	}
-
-	return tags, nil
-}
-
-func (s *Storage) DeleteTag(repoName string, tag string) error {
-	path := filepath.Join(tagDir, repoName, tag)
-	if err := os.Remove(path); err != nil {
-		if os.IsNotExist(err) {
-			return storage.ErrNotFound
-		}
-		return fmt.Errorf("failed to remove tag: %w", storage.ErrStorageFail)
 	}
 	return nil
 }

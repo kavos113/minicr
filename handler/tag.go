@@ -3,6 +3,7 @@ package handler
 import (
 	"errors"
 	"net/http"
+	"strconv"
 
 	"github.com/kavos113/minicr/storage"
 	"github.com/labstack/echo/v4"
@@ -23,8 +24,19 @@ type tagsResponse struct {
 
 func (h *TagHandler) GetTags(c echo.Context) error {
 	name := c.Param("name")
+	last := c.QueryParam("last")
+	nstr := c.QueryParam("n")
 
-	tags, err := h.storage.GetTagList(name)
+	n := -1
+	if nstr != "" {
+		ni, err := strconv.Atoi(nstr)
+		if err != nil {
+			return c.NoContent(http.StatusBadRequest)
+		}
+		n = ni
+	}
+
+	tags, err := h.storage.GetTagList(name, n, last)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
 			return c.NoContent(http.StatusNotFound)

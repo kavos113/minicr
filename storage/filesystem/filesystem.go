@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/kavos113/minicr/storage"
 	"github.com/opencontainers/go-digest"
@@ -213,13 +214,26 @@ func (s *Storage) ReadTag(repoName string, tag string) (string, error) {
 	return string(data), nil
 }
 
-func (s *Storage) GetTagList(repoName string) ([]string, error) {
+func (s *Storage) GetTagList(repoName string, limit int, last string) ([]string, error) {
 	files, err := os.ReadDir(filepath.Join(tagDir, repoName))
 	if err != nil {
 		if os.IsNotExist(err) {
 			return []string{}, storage.ErrNotFound
 		}
 		return []string{}, fmt.Errorf("failed to read tag dir: %w", storage.ErrStorageFail)
+	}
+
+	if last != "" {
+		i := slices.IndexFunc(files, func(entry os.DirEntry) bool {
+			return entry.Name() == last
+		})
+		if i >= 0 && i < len(files)-1 {
+			files = files[i+1:]
+		}
+	}
+
+	if limit > 0 {
+		files = files[:limit]
 	}
 
 	tags := make([]string, 0, len(files))

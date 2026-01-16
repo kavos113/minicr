@@ -23,5 +23,6 @@ type Storage interface {
 	SaveTag(repoName string, d digest.Digest, tag string) error
 	ReadTag(repoName string, tag string) (string, error)
 	DeleteTag(repoName string, tag string) error
-	GetTagList(repoName string) ([]string, error)
+	// GetTagList limit(default: -1), last: optional
+	GetTagList(repoName string, limit int, last string) ([]string, error)
 }

@@ -40,14 +40,19 @@ func main() {
 	e.GET("/v2/", baseHandler)
 	e.GET("/v2/:name/blobs/:digest", bh.GetBlobs)
 	e.HEAD("/v2/:name/blobs/:digest", bh.GetBlobs)
+	e.DELETE("/v2/:name/blobs/:digest", bh.DeleteBlob)
 	e.POST("/v2/:name/blobs/uploads/", buh.PostBlobUploads)
 	e.GET("/v2/:name/blobs/uploads/:reference", buh.GetBlobUploads)
 	e.PUT("/v2/:name/blobs/uploads/:reference", buh.PutBlobUpload)
 	e.PATCH("/v2/:name/blobs/uploads/:reference", buh.PatchBlobUpload)
+
 	e.PUT("/v2/:name/manifests/:reference", mh.PutManifests)
 	e.GET("/v2/:name/manifests/:reference", mh.GetManifests)
 	e.HEAD("/v2/:name/manifests/:reference", mh.GetManifests)
+	e.DELETE("/v2/:name/manifests/:digest", mh.DeleteManifest)
+
 	e.GET("/v2/:name/tags/list", th.GetTags)
+	e.GET("/v2/:name/manifests/:tag", th.DeleteTag)
 
 	e.Logger.Fatal(e.Start(":8080"))
 }

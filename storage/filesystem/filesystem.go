@@ -168,14 +168,24 @@ func (s *Storage) ReadBlobToWriter(repoName string, d digest.Digest, w io.Writer
 
 func (s *Storage) IsExistBlob(repoName string, d digest.Digest) (bool, error) {
 	path := filepath.Join(blobDir, repoName, d.String())
-	_, err := os.Stat(path)
-	if err != nil {
+	if _, err := os.Stat(path); err != nil {
 		if os.IsNotExist(err) {
 			return false, nil
 		}
 		return false, storage.ErrStorageFail
 	}
 	return true, nil
+}
+
+func (s *Storage) DeleteBlob(repoName string, d digest.Digest) error {
+	path := filepath.Join(blobDir, repoName, d.String())
+	if err := os.Remove(path); err != nil {
+		if os.IsNotExist(err) {
+			return storage.ErrNotFound
+		}
+		return fmt.Errorf("failed to remove blob: %w", storage.ErrStorageFail)
+	}
+	return nil
 }
 
 func (s *Storage) SaveTag(repoName string, d digest.Digest, tag string) error {
@@ -222,14 +232,10 @@ func (s *Storage) GetTagList(repoName string) ([]string, error) {
 
 func (s *Storage) DeleteTag(repoName string, tag string) error {
 	path := filepath.Join(tagDir, repoName, tag)
-	if _, err := os.Stat(path); err != nil {
+	if err := os.Remove(path); err != nil {
 		if os.IsNotExist(err) {
 			return storage.ErrNotFound
 		}
-		return fmt.Errorf("failed to stat: %w", storage.ErrStorageFail)
-	}
-
-	if err := os.Remove(path); err != nil {
 		return fmt.Errorf("failed to remove tag: %w", storage.ErrStorageFail)
 	}
 	return nil

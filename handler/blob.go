@@ -44,3 +44,23 @@ func (h *BlobHandler) GetBlobs(c echo.Context) error {
 
 	return c.NoContent(http.StatusOK)
 }
+
+func (h *BlobHandler) DeleteBlob(c echo.Context) error {
+	name := c.Param("name")
+	dstr := c.Param("digest")
+
+	d, err := digest.Parse(dstr)
+	if err != nil {
+		return c.NoContent(http.StatusBadRequest)
+	}
+
+	err = h.storage.DeleteBlob(name, d)
+	if err != nil {
+		if errors.Is(err, storage.ErrNotFound) {
+			return c.NoContent(http.StatusNotFound)
+		}
+		return c.NoContent(http.StatusInternalServerError)
+	}
+
+	return c.NoContent(http.StatusAccepted)
+}

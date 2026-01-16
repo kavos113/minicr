@@ -110,6 +110,26 @@ func (h *ManifestHandler) GetManifests(c echo.Context) error {
 	return c.JSON(http.StatusOK, m)
 }
 
+func (h *ManifestHandler) DeleteManifest(c echo.Context) error {
+	name := c.Param("name")
+	dstr := c.Param("digest")
+
+	d, err := digest.Parse(dstr)
+	if err != nil {
+		return c.NoContent(http.StatusBadRequest)
+	}
+
+	err = h.storage.DeleteBlob(name, d)
+	if err != nil {
+		if errors.Is(err, storage.ErrNotFound) {
+			return c.NoContent(http.StatusNotFound)
+		}
+		return c.NoContent(http.StatusInternalServerError)
+	}
+
+	return c.NoContent(http.StatusAccepted)
+}
+
 func isTag(reference string) bool {
 	_, err := digest.Parse(reference)
 	return err != nil

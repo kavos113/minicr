@@ -15,11 +15,10 @@ var (
 	rootPath  = "./data"
 	uploadDir = filepath.Join(rootPath, "uploads")
 	blobDir   = filepath.Join(rootPath, "blobs")
-	tagDir    = filepath.Join(rootPath, "tag")
 )
 
 func initDirs() error {
-	dirs := []string{rootPath, uploadDir, blobDir, tagDir}
+	dirs := []string{rootPath, uploadDir, blobDir}
 	for _, dir := range dirs {
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			return err

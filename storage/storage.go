@@ -3,6 +3,7 @@ package storage
 import (
 	"io"
 
+	"github.com/kavos113/minicr/schema"
 	"github.com/opencontainers/go-digest"
 )
 
@@ -27,4 +28,8 @@ type MetaStorage interface {
 	DeleteTag(repoName string, tag string) error
 	// GetTagList limit(default: -1), last: optional
 	GetTagList(repoName string, limit int, last string) ([]string, error)
+
+	// AddReference d: parent digest, desc: child descriptor
+	AddReference(repoName string, d digest.Digest, desc schema.Descriptor) error
+	GetReferences(repoName string, d digest.Digest, artifactType string) ([]schema.Descriptor, error)
 }

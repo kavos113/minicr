@@ -25,6 +25,10 @@ func NewManifestHandler(bs storage.BlobStorage, ms storage.MetaStorage) *Manifes
 	}
 }
 
+const (
+	mediaTypeOCIImageIndex = "application/vnd.oci.image.index.v1+json"
+)
+
 func (h *ManifestHandler) PutManifests(c echo.Context) error {
 	name := c.Param("name")
 	ref := c.Param("reference")
@@ -40,18 +44,20 @@ func (h *ManifestHandler) PutManifests(c echo.Context) error {
 		return c.String(http.StatusBadRequest, "invalid manifest")
 	}
 
-	for _, desc := range append(m.Layers, m.Config) {
-		err = desc.Digest.Validate()
-		if err != nil {
-			return c.String(http.StatusBadRequest, "invalid digest")
-		}
+	if m.Layers != nil && m.Config != nil {
+		for _, desc := range append(*m.Layers, *m.Config) {
+			err = desc.Digest.Validate()
+			if err != nil {
+				return c.String(http.StatusBadRequest, "invalid digest")
+			}
 
-		exist, err := h.bs.IsExistBlob(name, desc.Digest)
-		if err != nil {
-			return c.NoContent(http.StatusInternalServerError)
-		}
-		if !exist {
-			return c.String(http.StatusBadRequest, "unknown blob layer")
+			exist, err := h.bs.IsExistBlob(name, desc.Digest)
+			if err != nil {
+				return c.NoContent(http.StatusInternalServerError)
+			}
+			if !exist {
+				return c.String(http.StatusBadRequest, "unknown blob layer")
+			}
 		}
 	}
 
@@ -65,6 +71,29 @@ func (h *ManifestHandler) PutManifests(c echo.Context) error {
 		if err := h.ms.SaveTag(name, d, ref); err != nil {
 			return c.NoContent(http.StatusInternalServerError)
 		}
+	}
+
+	if m.Subject != nil {
+		artifact := ""
+		if m.ArtifactType != nil {
+			artifact = *m.ArtifactType
+		} else if m.Config != nil {
+			artifact = m.Config.MediaType
+		}
+
+		desc := schema.Descriptor{
+			MediaType:    m.MediaType,
+			Digest:       d,
+			Size:         int64(len(payload)),
+			Annotations:  m.Annotations,
+			ArtifactType: &artifact,
+		}
+
+		if err := h.ms.AddReference(name, m.Subject.Digest, desc); err != nil {
+			return c.NoContent(http.StatusInternalServerError)
+		}
+
+		c.Response().Header().Set("OCI-Subject", m.Subject.Digest.String())
 	}
 
 	c.Response().Header().Set("Location", fmt.Sprintf("/v2/%s/manifests/%s/", name, d.String()))
@@ -149,4 +178,41 @@ func (h *ManifestHandler) DeleteManifests(c echo.Context) error {
 func isTag(reference string) bool {
 	_, err := digest.Parse(reference)
 	return err != nil
+}
+
+func (h *ManifestHandler) GetReferrers(c echo.Context) error {
+	name := c.Param("name")
+	dstr := c.Param("digest")
+	artifact := c.QueryParam("artifactType")
+
+	c.Response().Header().Set(echo.HeaderContentType, mediaTypeOCIImageIndex)
+	if artifact != "" {
+		c.Response().Header().Set("OCI-Filters-Applied", "artifactType")
+	}
+
+	d, err := digest.Parse(dstr)
+	if err != nil {
+		return c.NoContent(http.StatusBadRequest)
+	}
+
+	descs, err := h.ms.GetReferences(name, d, artifact)
+	if err != nil {
+		if errors.Is(err, storage.ErrNotFound) {
+			response := schema.Manifest{
+				SchemaVersion: 2,
+				MediaType:     mediaTypeOCIImageIndex,
+				Manifests:     nil,
+			}
+			return c.JSON(http.StatusOK, response)
+		}
+		return c.NoContent(http.StatusInternalServerError)
+	}
+
+	response := schema.Manifest{
+		SchemaVersion: 2,
+		MediaType:     mediaTypeOCIImageIndex,
+		Manifests:     &descs,
+	}
+
+	return c.JSON(http.StatusOK, response)
 }

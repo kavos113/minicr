@@ -2,11 +2,13 @@ package store
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"slices"
 
+	"github.com/kavos113/minicr/schema"
 	"github.com/kavos113/minicr/storage"
 	"github.com/opencontainers/go-digest"
 	bolt "go.etcd.io/bbolt"
@@ -127,4 +129,63 @@ func (s Storage) GetTagList(repoName string, limit int, last string) ([]string, 
 
 func tagKey(repoName string, tag string) []byte {
 	return []byte(fmt.Sprintf("%s:%s", repoName, tag))
+}
+
+func (s Storage) AddReference(repoName string, d digest.Digest, desc schema.Descriptor) error {
+	return s.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket(bucketNameReference)
+		key := []byte(fmt.Sprintf("%s:%s", repoName, d.String()))
+		curr := b.Get(key)
+
+		var list []schema.Descriptor
+
+		if curr != nil {
+			if err := json.Unmarshal(curr, &list); err != nil {
+				return fmt.Errorf("broken descriptor: %w", storage.ErrStorageFail)
+			}
+		}
+
+		list = append(list, desc)
+		data, err := json.Marshal(list)
+		if err != nil {
+			return fmt.Errorf("broken data: %w", storage.ErrStorageFail)
+		}
+
+		err = b.Put(key, data)
+		if err != nil {
+			return fmt.Errorf("failed to put storage: %w", storage.ErrStorageFail)
+		}
+		return nil
+	})
+}
+
+func (s Storage) GetReferences(repoName string, d digest.Digest, artifactType string) ([]schema.Descriptor, error) {
+	var list []schema.Descriptor
+
+	err := s.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket(bucketNameReference)
+		key := []byte(fmt.Sprintf("%s:%s", repoName, d.String()))
+		data := b.Get(key)
+		if data == nil {
+			return storage.ErrNotFound
+		}
+
+		if err := json.Unmarshal(b.Get(key), &list); err != nil {
+			return fmt.Errorf("broken descriptor: %w", storage.ErrStorageFail)
+		}
+		return nil
+	})
+
+	if artifactType == "" {
+		return list, err
+	}
+
+	filtered := make([]schema.Descriptor, 0)
+	for _, d := range list {
+		fmt.Printf("desc type: %s, digest: %s\n", *d.ArtifactType, d.Digest.String())
+		if *d.ArtifactType == artifactType {
+			filtered = append(filtered, d)
+		}
+	}
+	return filtered, err
 }

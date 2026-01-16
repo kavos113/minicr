@@ -52,6 +52,7 @@ func main() {
 	e.GET("/v2/:name/manifests/:reference", mh.GetManifests)
 	e.HEAD("/v2/:name/manifests/:reference", mh.GetManifests)
 	e.DELETE("/v2/:name/manifests/:digest", mh.DeleteManifests)
+	e.GET("/v2/:name/referrers/:digest", mh.GetReferrers)
 
 	e.GET("/v2/:name/tags/list", th.GetTags)
 

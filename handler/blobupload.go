@@ -15,10 +15,10 @@ import (
 )
 
 type BlobUploadHandler struct {
-	storage storage.Storage
+	storage storage.BlobStorage
 }
 
-func NewBlobUploadHandler(s storage.Storage) *BlobUploadHandler {
+func NewBlobUploadHandler(s storage.BlobStorage) *BlobUploadHandler {
 	return &BlobUploadHandler{storage: s}
 }
 

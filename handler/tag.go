@@ -10,10 +10,10 @@ import (
 )
 
 type TagHandler struct {
-	storage storage.Storage
+	storage storage.BlobStorage
 }
 
-func NewTagHandler(s storage.Storage) *TagHandler {
+func NewTagHandler(s storage.BlobStorage) *TagHandler {
 	return &TagHandler{storage: s}
 }
 

@@ -11,10 +11,10 @@ import (
 )
 
 type BlobHandler struct {
-	storage storage.Storage
+	storage storage.BlobStorage
 }
 
-func NewBlobHandler(s storage.Storage) *BlobHandler {
+func NewBlobHandler(s storage.BlobStorage) *BlobHandler {
 	return &BlobHandler{storage: s}
 }
 

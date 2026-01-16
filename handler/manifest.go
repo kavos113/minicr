@@ -14,10 +14,10 @@ import (
 )
 
 type ManifestHandler struct {
-	storage storage.Storage
+	storage storage.BlobStorage
 }
 
-func NewManifestHandler(s storage.Storage) *ManifestHandler {
+func NewManifestHandler(s storage.BlobStorage) *ManifestHandler {
 	return &ManifestHandler{storage: s}
 }
 

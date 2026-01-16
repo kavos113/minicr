@@ -110,11 +110,23 @@ func (h *ManifestHandler) GetManifests(c echo.Context) error {
 	return c.JSON(http.StatusOK, m)
 }
 
-func (h *ManifestHandler) DeleteManifest(c echo.Context) error {
+func (h *ManifestHandler) DeleteManifests(c echo.Context) error {
 	name := c.Param("name")
-	dstr := c.Param("digest")
+	ref := c.Param("digest")
 
-	d, err := digest.Parse(dstr)
+	istag := isTag(ref)
+	if istag {
+		err := h.storage.DeleteTag(name, ref)
+		if err != nil {
+			if errors.Is(err, storage.ErrNotFound) {
+				return c.NoContent(http.StatusNotFound)
+			}
+			return c.NoContent(http.StatusInternalServerError)
+		}
+		return c.NoContent(http.StatusAccepted)
+	}
+
+	d, err := digest.Parse(ref)
 	if err != nil {
 		return c.NoContent(http.StatusBadRequest)
 	}

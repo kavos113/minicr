@@ -49,10 +49,9 @@ func main() {
 	e.PUT("/v2/:name/manifests/:reference", mh.PutManifests)
 	e.GET("/v2/:name/manifests/:reference", mh.GetManifests)
 	e.HEAD("/v2/:name/manifests/:reference", mh.GetManifests)
-	e.DELETE("/v2/:name/manifests/:digest", mh.DeleteManifest)
+	e.DELETE("/v2/:name/manifests/:digest", mh.DeleteManifests)
 
 	e.GET("/v2/:name/tags/list", th.GetTags)
-	e.GET("/v2/:name/manifests/:tag", th.DeleteTag)
 
 	e.Logger.Fatal(e.Start(":8080"))
 }

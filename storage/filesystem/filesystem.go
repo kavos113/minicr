@@ -186,3 +186,27 @@ func (s *Storage) DeleteBlob(repoName string, d digest.Digest) error {
 	}
 	return nil
 }
+
+func (s *Storage) LinkBlob(newRepo string, repo string, d digest.Digest) error {
+	oldPath := filepath.Join(blobDir, repo, d.String())
+	newPath := filepath.Join(blobDir, newRepo, d.String())
+	if _, err := os.Stat(oldPath); err != nil {
+		if os.IsNotExist(err) {
+			return storage.ErrNotFound
+		}
+		return fmt.Errorf("failed to stat blob: %w", storage.ErrStorageFail)
+	}
+
+	if err := os.MkdirAll(filepath.Dir(newPath), 0755); err != nil {
+		return fmt.Errorf("failed to create repository: %w", storage.ErrStorageFail)
+	}
+
+	if err := os.Link(oldPath, newPath); err != nil {
+		if os.IsExist(err) {
+			return nil
+		}
+		return fmt.Errorf("failed to create hard link: %w", storage.ErrStorageFail)
+	}
+
+	return nil
+}

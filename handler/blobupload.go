@@ -71,6 +71,27 @@ func (h *BlobUploadHandler) PostBlobUploads(c echo.Context) error {
 		return c.NoContent(http.StatusCreated)
 	}
 
+	mount := c.QueryParam("mount")
+	from := c.QueryParam("from")
+	if mount != "" && from != "" {
+		// mount from another repository
+		md, err := digest.Parse(mount)
+		if err != nil {
+			return c.NoContent(http.StatusBadRequest)
+		}
+
+		if err := h.bs.LinkBlob(name, from, md); err != nil {
+			if errors.Is(err, storage.ErrNotFound) {
+				c.Response().Header().Set(echo.HeaderLocation, fmt.Sprintf("/v2/%s/blobs/uploads/%s", name, id.String()))
+				return c.NoContent(http.StatusAccepted)
+			}
+			return c.NoContent(http.StatusInternalServerError)
+		}
+
+		c.Response().Header().Set(echo.HeaderLocation, fmt.Sprintf("/v2/%s/blobs/%s", name, md.String()))
+		return c.NoContent(http.StatusCreated)
+	}
+
 	c.Response().Header().Set(echo.HeaderLocation, fmt.Sprintf("/v2/%s/blobs/uploads/%s", name, id.String()))
 
 	return c.NoContent(http.StatusAccepted)

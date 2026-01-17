@@ -20,6 +20,8 @@ type BlobStorage interface {
 	ReadBlobToWriter(repoName string, d digest.Digest, w io.Writer) (int64, error)
 	IsExistBlob(repoName string, d digest.Digest) (bool, error)
 	DeleteBlob(repoName string, d digest.Digest) error
+
+	LinkBlob(newRepo string, repo string, d digest.Digest) error
 }
 
 type MetaStorage interface {
